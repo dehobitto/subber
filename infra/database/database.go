@@ -1,4 +1,4 @@
-package db
+package database
 
 import (
 	"context"
@@ -24,10 +24,26 @@ func Connect() (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
+func Migrate(pool *pgxpool.Pool, filePath string) error {
+	schema, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("could not read schema file: %v", err)
+
+	}
+
+	_, err = pool.Exec(context.Background(), string(schema))
+	if err != nil {
+		return fmt.Errorf("could not execute schema: %v", err)
+	}
+
+	fmt.Println("Migrations applied successfully!")
+
+	return nil
+}
+
 // Gets a Data Source Name for PostgreSQL, using env
 func getDSN() string {
-
-	host := os.Getenv("DB_HOST")
+	host := os.Getenv("DB_NAME")
 	port := os.Getenv("DB_PORT")
 	user := os.Getenv("DB_USER")
 	pswd := os.Getenv("DB_PASSWORD")
