@@ -1,23 +1,13 @@
 package main
 
 import (
-	"context"
+	"subber/infra/db"
 	"subber/routes"
-
-	"github.com/jackc/pgx/v5"
 )
 
 func main() {
 	r := routes.SetupRouter()
+	db, err := db.Connect()
+
 	r.Run(":8080")
-}
-
-func connect() (*pgx.Conn, error) {
-	// TODO:
-	conn, err := pgx.Connect(context.Background(), "")
-
-	if err != nil {
-		return nil, err
-	}
-	return conn, nil
 }

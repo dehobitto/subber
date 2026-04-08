@@ -8,9 +8,9 @@ services:
       POSTGRES_DB: ${DB_NAME}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5430:5432"
+      - "5430:${DB_PORT}"
     volumes:
-      - ./pgdata:/var/lib/postgresql/data/pgdata
+      - pgdata:/var/lib/postgresql/data/pgdata
     deploy:
       resources:
         limits:
@@ -20,9 +20,9 @@ services:
           cpus: '0.25'
           memory: 256M
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres_user -d postgres_db" ]
-      interval: 30s
-      timeout: 10s
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      interval: 3s
+      timeout: 3s
       retries: 5
     restart: unless-stopped
     tty: true
@@ -34,10 +34,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
+    environment:
+      - GIN_MODE=${GIN_MODE}
     depends_on:
       postgres:
         condition: service_healthy
 
 volumes:
   pgdata:
-    driver: local

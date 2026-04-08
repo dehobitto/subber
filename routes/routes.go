@@ -9,6 +9,8 @@ import (
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
+	r.SetTrustedProxies(nil)
+
 	api := r.Group("/api")
 	{
 		api.POST("/subscribe", handlers.Subscribe)
