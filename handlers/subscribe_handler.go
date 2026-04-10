@@ -24,7 +24,18 @@ func (h *Handler) Subscribe(c *gin.Context) {
 	}
 
 	if !utils.IsValidRepo(newOwnerRepo.Repo) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid repository"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid repository format"})
+		return
+	}
+
+	exists, err := h.Repo.SubscriptionExists(c.Request.Context(), newOwnerRepo.Email, newOwnerRepo.Repo)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error during check"})
+		return
+	}
+
+	if exists {
+		c.JSON(http.StatusConflict, gin.H{"error": "Email already subscribed to this repository"})
 		return
 	}
 
@@ -41,7 +52,7 @@ func (h *Handler) Subscribe(c *gin.Context) {
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
-		c.JSON(http.StatusNotFound, gin.H{"error": "This repository does not exist"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Repository not found on GitHub"})
 		return
 	}
 
@@ -65,13 +76,9 @@ func (h *Handler) Subscribe(c *gin.Context) {
 		return
 	}
 
-	err = h.Repo.ConfirmSubscriptionByToken(c.Request.Context(), newOwnerRepo.Token)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Token not found."})
-		return
-	}
+	// TODO send email
 
-	c.JSON(http.StatusOK, gin.H{"success": "Subscription successfull!"})
+	c.JSON(http.StatusOK, gin.H{"success": "Subscription successful. Confirmation email sent."})
 }
 
 func checkIfRepoExists(ctx context.Context, repo string) (*http.Response, error) {

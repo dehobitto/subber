@@ -6,13 +6,14 @@ import (
 	"log"
 	"os"
 
+	"subber/config"
 	"subber/models"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func Connect() (*pgxpool.Pool, error) {
-	dsn := getDSN()
+func Connect(cfg *config.Config) (*pgxpool.Pool, error) {
+	dsn := getDSN(cfg)
 
 	pool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
@@ -69,13 +70,13 @@ func (r *Repository) SaveSubscription(ctx context.Context, sub models.Subscripti
 	return nil
 }
 
-func getDSN() string {
+func getDSN(cfg *config.Config) string {
 	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_NAME"),
+		cfg.DBHost,
+		cfg.DBPort,
+		cfg.DBUser,
+		cfg.DBPassword,
+		cfg.DBName,
 	)
 }
 
@@ -125,7 +126,7 @@ func (r *Repository) GetSubscriptions(ctx context.Context, email string) ([]mode
 	}
 	defer rows.Close()
 
-	var subs []models.Subscription
+	subs := make([]models.Subscription, 0)
 	for rows.Next() {
 		var s models.Subscription
 
@@ -147,4 +148,16 @@ func (r *Repository) GetSubscriptions(ctx context.Context, email string) ([]mode
 	}
 
 	return subs, nil
+}
+
+func (r *Repository) SubscriptionExists(ctx context.Context, email, repo string) (bool, error) {
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM subscriptions WHERE email = $1 AND repo = $2)`
+
+	err := r.pool.QueryRow(ctx, query, email, repo).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
 }

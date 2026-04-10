@@ -4,10 +4,16 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func (h *Handler) UnsubscribeByToken(c *gin.Context) {
 	token := c.Param("token")
+
+	if err := uuid.Validate(token); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid token"})
+		return
+	}
 
 	err := h.Repo.Unsubscribe(c.Request.Context(), token)
 	if err != nil {
@@ -15,5 +21,5 @@ func (h *Handler) UnsubscribeByToken(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusOK)
+	c.JSON(http.StatusOK, gin.H{"message": "Unsubscribed successfully"})
 }

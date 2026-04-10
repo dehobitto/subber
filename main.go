@@ -2,12 +2,15 @@ package main
 
 import (
 	"log"
+	"subber/config"
 	"subber/infra/database"
 	"subber/routes"
 )
 
 func main() {
-	pool, err := database.Connect()
+	cfg := config.LoadConfig()
+
+	pool, err := database.Connect(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}

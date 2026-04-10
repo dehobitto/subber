@@ -4,16 +4,22 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func (h *Handler) ConfirmByToken(c *gin.Context) {
-	token := c.Param("token")
+	token := c.Param("token") // Беремо токен з URL
 
-	err := h.Repo.ConfirmSubscriptionByToken(c.Request.Context(), token)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+	if err := uuid.Validate(token); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid token"})
 		return
 	}
 
-	c.Status(http.StatusOK)
+	err := h.Repo.ConfirmSubscriptionByToken(c.Request.Context(), token)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Token not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Subscription confirmed successfully"})
 }
