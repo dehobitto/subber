@@ -15,7 +15,7 @@ func (h *Handler) GetSubscriptions(c *gin.Context) {
 		return
 	}
 
-	subscriptions, err := h.Repo.GetSubscriptions(c.Request.Context(), email)
+	subscriptions, err := h.repo.GetSubscriptions(c.Request.Context(), email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return

@@ -1,15 +1,21 @@
 package handlers
 
 import (
+	"subber/config"
 	"subber/infra/database"
+	"subber/workers"
 )
 
 type Handler struct {
-	Repo *database.Repository
+	repo *database.Repository
+	cfg  *config.Config
+	jobs chan<- workers.NotificationJob
 }
 
-func NewHandler(repo *database.Repository) *Handler {
+func NewHandler(repo *database.Repository, cfg *config.Config, jobs chan<- workers.NotificationJob) *Handler {
 	return &Handler{
-		Repo: repo,
+		repo: repo,
+		cfg:  cfg,
+		jobs: jobs,
 	}
 }

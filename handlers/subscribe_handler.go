@@ -1,15 +1,14 @@
 package handlers
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"subber/models"
 	"subber/utils"
+	"subber/utils/github"
+	"subber/workers"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -28,7 +27,7 @@ func (h *Handler) Subscribe(c *gin.Context) {
 		return
 	}
 
-	exists, err := h.Repo.SubscriptionExists(c.Request.Context(), newOwnerRepo.Email, newOwnerRepo.Repo)
+	exists, err := h.repo.SubscriptionExists(c.Request.Context(), newOwnerRepo.Email, newOwnerRepo.Repo)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error during check"})
 		return
@@ -39,7 +38,7 @@ func (h *Handler) Subscribe(c *gin.Context) {
 		return
 	}
 
-	resp, err := checkIfRepoExists(c.Request.Context(), newOwnerRepo.Repo)
+	resp, err := github.CheckIfRepoExists(c.Request.Context(), newOwnerRepo.Repo, h.cfg.GitHubToken)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to reach GitHub API"})
 		return
@@ -61,71 +60,43 @@ func (h *Handler) Subscribe(c *gin.Context) {
 		return
 	}
 
-	tag, err := getLatestTag(c.Request.Context(), newOwnerRepo.Repo)
+	tag, err := github.GetLatestTag(c.Request.Context(), newOwnerRepo.Repo, h.cfg.GitHubToken)
 	if err != nil {
-		log.Println("Could not fetch tag:", err)
+		log.Printf("Warning: Could not fetch initial tag for %s: %v", newOwnerRepo.Repo, err)
 	}
 
 	newOwnerRepo.LastSeenTag = tag
 	newOwnerRepo.Token = uuid.New().String()
 	newOwnerRepo.Confirmed = false
 
-	err = h.Repo.SaveSubscription(c.Request.Context(), newOwnerRepo)
+	err = h.repo.SaveSubscription(c.Request.Context(), newOwnerRepo)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database saving failed"})
 		return
 	}
 
-	// TODO send email
+	h.sendConfirmation(newOwnerRepo.Email, newOwnerRepo.Token)
 
 	c.JSON(http.StatusOK, gin.H{"success": "Subscription successful. Confirmation email sent."})
 }
 
-func checkIfRepoExists(ctx context.Context, repo string) (*http.Response, error) {
-	link := fmt.Sprintf("https://api.github.com/repos/%s", repo)
+func (h *Handler) sendConfirmation(email, token string) {
+	confirmURL := fmt.Sprintf("http://localhost:%s/confirm?token=%s", h.cfg.ServerPort, token)
 
-	req, err := http.NewRequestWithContext(ctx, "HEAD", link, nil)
-	if err != nil {
-		return nil, err
+	message := fmt.Sprintf(
+		"Welcome! Please confirm your subscription to GitHub repository updates by clicking here: %s",
+		confirmURL,
+	)
+
+	job := workers.NotificationJob{
+		Email:   email,
+		Message: message,
 	}
 
-	req.Header.Set("User-Agent", "Go-Subber-App")
-
-	client := &http.Client{
-		Timeout: 10 * time.Second,
+	select {
+	case h.jobs <- job:
+		log.Printf("Confirmation job queued for: %s", email)
+	default:
+		log.Printf("Critical: Notification channel is full. Dropping confirmation for: %s", email)
 	}
-
-	return client.Do(req)
-}
-
-func getLatestTag(ctx context.Context, repo string) (string, error) {
-	link := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repo)
-
-	req, err := http.NewRequestWithContext(ctx, "GET", link, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("User-Agent", "Go-Subber-App")
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return "", nil
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("github error: %d", resp.StatusCode)
-	}
-
-	var release models.GitHubRelease
-	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return "", err
-	}
-
-	return release.TagName, nil
 }

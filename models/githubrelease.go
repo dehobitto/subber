@@ -1,5 +1,6 @@
 package models
 
 type GitHubRelease struct {
-	TagName string `json:"tag_name"`
+	Repo        string `json:"repo"`
+	LastSeenTag string `json:"tag_name"`
 }

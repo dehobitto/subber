@@ -161,3 +161,86 @@ func (r *Repository) SubscriptionExists(ctx context.Context, email, repo string)
 
 	return exists, nil
 }
+
+func (r *Repository) GetUniqueSubscriptions(ctx context.Context) ([]models.GitHubRelease, error) {
+	query := `
+		SELECT DISTINCT repo, last_seen_tag 
+		FROM subscriptions
+		WHERE confirmed = true
+	`
+
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("error on query: %w", err)
+	}
+	defer rows.Close()
+
+	var subs []models.GitHubRelease
+	for rows.Next() {
+		var s models.GitHubRelease
+
+		err := rows.Scan(
+			&s.Repo,
+			&s.LastSeenTag,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error while scanning rows: %w", err)
+		}
+
+		subs = append(subs, s)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return subs, nil
+}
+
+func (r *Repository) GetSubscribers(ctx context.Context, repo string) ([]string, error) {
+	query := `
+		SELECT DISTINCT email 
+		FROM subscriptions
+		WHERE repo = $1
+	`
+
+	rows, err := r.pool.Query(ctx, query, repo)
+	if err != nil {
+		return nil, fmt.Errorf("error on query: %w", err)
+	}
+	defer rows.Close()
+
+	var subs []string
+	for rows.Next() {
+		var s string
+
+		err := rows.Scan(&s)
+
+		if err != nil {
+			return nil, fmt.Errorf("error while scanning rows: %w", err)
+		}
+
+		subs = append(subs, s)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return subs, nil
+}
+
+func (r *Repository) UpdateTags(ctx context.Context, repo models.GitHubRelease) error {
+	query := `
+	UPDATE subscriptions
+	SET last_seen_tag = $1
+	WHERE repo = $2
+	`
+
+	_, err := r.pool.Exec(ctx, query, repo.LastSeenTag, repo.Repo)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

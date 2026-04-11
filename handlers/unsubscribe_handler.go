@@ -15,7 +15,7 @@ func (h *Handler) UnsubscribeByToken(c *gin.Context) {
 		return
 	}
 
-	err := h.Repo.Unsubscribe(c.Request.Context(), token)
+	err := h.repo.Unsubscribe(c.Request.Context(), token)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Token not found."})
 		return
