@@ -28,13 +28,13 @@ func TestLoadConfig_Defaults(t *testing.T) {
 }
 
 func TestLoadConfig_FromEnv(t *testing.T) {
-	os.Setenv("DB_HOST", "customhost")
-	os.Setenv("DB_PORT", "9999")
-	os.Setenv("API_KEY", "my-secret")
+	_ = os.Setenv("DB_HOST", "customhost")
+	_ = os.Setenv("DB_PORT", "9999")
+	_ = os.Setenv("API_KEY", "my-secret")
 	defer func() {
-		os.Unsetenv("DB_HOST")
-		os.Unsetenv("DB_PORT")
-		os.Unsetenv("API_KEY")
+		_ = os.Unsetenv("DB_HOST")
+		_ = os.Unsetenv("DB_PORT")
+		_ = os.Unsetenv("API_KEY")
 	}()
 
 	cfg := LoadConfig()

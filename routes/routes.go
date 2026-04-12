@@ -14,7 +14,7 @@ import (
 
 func SetupRouter(repo *database.Repository, cfg *config.Config, jobs chan<- workers.NotificationJob, rc *cache.RedisCache) *gin.Engine {
 	r := gin.Default()
-	r.SetTrustedProxies(nil)
+	_ = r.SetTrustedProxies(nil)
 
 	r.Use(middleware.PrometheusMiddleware())
 

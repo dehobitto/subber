@@ -10,7 +10,7 @@ import (
 func TestGetLatestTag_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"tag_name": "v1.2.3"}`))
+		_, _ = w.Write([]byte(`{"tag_name": "v1.2.3"}`))
 	}))
 	defer server.Close()
 
@@ -76,7 +76,7 @@ func TestCheckIfRepoExists_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
@@ -97,7 +97,7 @@ func TestCheckIfRepoExists_NotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("expected 404, got %d", resp.StatusCode)
@@ -112,7 +112,7 @@ func TestGetLatestTag_AuthHeader(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"tag_name": "v2.0.0"}`))
+		_, _ = w.Write([]byte(`{"tag_name": "v2.0.0"}`))
 	}))
 	defer server.Close()
 
