@@ -60,7 +60,7 @@ func (h *Handler) Subscribe(c *gin.Context) {
 		return
 	}
 
-	tag, err := github.GetLatestTag(c.Request.Context(), newOwnerRepo.Repo, h.cfg.GitHubToken)
+	tag, err := github.GetLatestTag(c.Request.Context(), newOwnerRepo.Repo, h.cfg.GitHubToken, h.cache)
 	if err != nil {
 		log.Printf("Warning: Could not fetch initial tag for %s: %v", newOwnerRepo.Repo, err)
 	}
@@ -81,7 +81,7 @@ func (h *Handler) Subscribe(c *gin.Context) {
 }
 
 func (h *Handler) sendConfirmation(email, token string) {
-	confirmURL := fmt.Sprintf("http://localhost:%s/confirm?token=%s", h.cfg.ServerPort, token)
+	confirmURL := fmt.Sprintf("http://localhost:%s/api/confirm/%s", h.cfg.ServerPort, token)
 
 	message := fmt.Sprintf(
 		"Welcome! Please confirm your subscription to GitHub repository updates by clicking here: %s",
