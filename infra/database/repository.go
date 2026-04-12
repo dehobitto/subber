@@ -4,44 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 
-	"subber/config"
 	"subber/models"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-func Connect(cfg *config.Config) (*pgxpool.Pool, error) {
-	dsn := getDSN(cfg)
-
-	pool, err := pgxpool.New(context.Background(), dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := pool.Ping(context.Background()); err != nil {
-		return nil, err
-	}
-
-	log.Println("Database connection established")
-	return pool, nil
-}
-
-func Migrate(pool *pgxpool.Pool, filePath string) error {
-	schema, err := os.ReadFile(filePath)
-	if err != nil {
-		return err
-	}
-
-	_, err = pool.Exec(context.Background(), string(schema))
-	if err != nil {
-		return err
-	}
-
-	log.Println("Migrations applied successfully!")
-	return nil
-}
 
 type Repository struct {
 	pool *pgxpool.Pool
@@ -53,14 +20,13 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 
 func (r *Repository) SaveSubscription(ctx context.Context, sub models.Subscription) error {
 	query := `
-        INSERT INTO subscriptions (email, repo, confirmed, last_seen_tag, token)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (email, repo) DO UPDATE 
-        SET last_seen_tag = EXCLUDED.last_seen_tag;
-    `
+		INSERT INTO subscriptions (email, repo, confirmed, last_seen_tag, token)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (email, repo) DO UPDATE 
+		SET last_seen_tag = EXCLUDED.last_seen_tag;
+	`
 
 	_, err := r.pool.Exec(ctx, query, sub.Email, sub.Repo, sub.Confirmed, sub.LastSeenTag, sub.Token)
-
 	if err != nil {
 		log.Printf("Failed to save subscription for %s: %v", sub.Email, err)
 		return err
@@ -68,16 +34,6 @@ func (r *Repository) SaveSubscription(ctx context.Context, sub models.Subscripti
 
 	log.Printf("Subscription saved for %s on %s", sub.Email, sub.Repo)
 	return nil
-}
-
-func getDSN(cfg *config.Config) string {
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		cfg.DBHost,
-		cfg.DBPort,
-		cfg.DBUser,
-		cfg.DBPassword,
-		cfg.DBName,
-	)
 }
 
 func (r *Repository) ConfirmSubscriptionByToken(ctx context.Context, token string) error {
@@ -107,7 +63,7 @@ func (r *Repository) Unsubscribe(ctx context.Context, token string) error {
 	}
 
 	if result.RowsAffected() == 0 {
-		return fmt.Errorf("Token not found.")
+		return fmt.Errorf("token not found")
 	}
 
 	return nil
@@ -115,10 +71,10 @@ func (r *Repository) Unsubscribe(ctx context.Context, token string) error {
 
 func (r *Repository) GetSubscriptions(ctx context.Context, email string) ([]models.Subscription, error) {
 	query := `
-        SELECT email, repo, confirmed, last_seen_tag 
-        FROM subscriptions
-        WHERE email = $1 AND confirmed = true
-    `
+		SELECT email, repo, confirmed, last_seen_tag 
+		FROM subscriptions
+		WHERE email = $1 AND confirmed = true
+	`
 
 	rows, err := r.pool.Query(ctx, query, email)
 	if err != nil {
@@ -201,7 +157,7 @@ func (r *Repository) GetSubscribers(ctx context.Context, repo string) ([]string,
 	query := `
 		SELECT DISTINCT email 
 		FROM subscriptions
-		WHERE repo = $1
+		WHERE repo = $1 AND confirmed = true
 	`
 
 	rows, err := r.pool.Query(ctx, query, repo)
