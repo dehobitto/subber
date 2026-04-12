@@ -7,22 +7,25 @@ import (
 	"time"
 
 	"subber/config"
+	"subber/infra/cache"
 	"subber/infra/database"
 	"subber/models"
 	"subber/utils/github"
 )
 
 type ScannerWorker struct {
-	repo *database.Repository
-	cfg  *config.Config
-	jobs chan<- NotificationJob
+	repo  *database.Repository
+	cfg   *config.Config
+	jobs  chan<- NotificationJob
+	cache *cache.RedisCache
 }
 
-func NewScannerWorker(repo *database.Repository, cfg *config.Config, jobs chan<- NotificationJob) *ScannerWorker {
+func NewScannerWorker(repo *database.Repository, cfg *config.Config, jobs chan<- NotificationJob, rc *cache.RedisCache) *ScannerWorker {
 	return &ScannerWorker{
-		repo: repo,
-		cfg:  cfg,
-		jobs: jobs,
+		repo:  repo,
+		cfg:   cfg,
+		jobs:  jobs,
+		cache: rc,
 	}
 }
 
@@ -52,7 +55,7 @@ func (w *ScannerWorker) scan(ctx context.Context) error {
 	var updatedRepos []models.GitHubRelease
 
 	for _, repo := range uniqueRepos {
-		newTag, err := github.GetLatestTag(ctx, repo.Repo, w.cfg.GitHubToken)
+		newTag, err := github.GetLatestTag(ctx, repo.Repo, w.cfg.GitHubToken, w.cache)
 		if err != nil {
 			log.Printf("failed to get tag for %s: %v", repo.Repo, err)
 			continue
